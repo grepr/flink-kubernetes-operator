@@ -1,9 +1,13 @@
 name: "Push Docker Image to Dev ECR"
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - rp-OPS-147-automate-build
+
+env:
+  ROLE_ARN: arn:aws:iam::381491835868:role/grepr-flink-kubernetes-operator
+  ROLE_SESSION_NAME: GitHub_to_AWS_via_FederatedOIDC
+  AWS_REGION: us-east-1
+  IMAGE_NAME: flink-k8s-operator
+  ECR_URL: 381491835868.dkr.ecr.us-east-1.amazonaws.com
 jobs:
   build_image:
     runs-on: ubuntu-latest
@@ -14,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: release-1.9
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -27,27 +33,22 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
-          role-to-assume: arn:aws:iam::381491835868:role/grepr-flink-kubernetes-operator
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: us-east-1
+          role-to-assume: ${{ env.ROLE_ARN }}
+          role-session-name: ${{ env.ROLE_SESSION_NAME }}
+          aws-region: $ {{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-#      - name: Install Docker
-#        run: |
-#          sudo apt-get update
-#          sudo apt-get install -y docker.io
-
       - name: Build Docker image
         run: |
-          docker build -t flink-k8s-operator . --file Dockerfile
+          docker build -t ${{ env.IMAGE_NAME }} . --file Dockerfile
 
       - name: Tag Docker image
         run: |
-          docker tag flink-k8s-operator:latest 381491835868.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator:latest
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Push Docker image to ECR
         run: |
-          docker push 381491835868.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator:latest
+          docker push ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:latest
