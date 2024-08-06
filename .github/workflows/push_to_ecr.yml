@@ -1,6 +1,9 @@
 name: "Push Docker Image to Dev ECR"
 on:
   workflow_dispatch:
+  schedule:
+    # Runs at midnight UTC every day
+    - cron: '0 0 * * *'
 env:
   ROLE_ARN: arn:aws:iam::381491835868:role/grepr-flink-kubernetes-operator
   ROLE_SESSION_NAME: GitHub_to_AWS_via_FederatedOIDC
