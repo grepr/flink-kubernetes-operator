@@ -36,7 +36,7 @@ jobs:
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           role-session-name: ${{ env.ROLE_SESSION_NAME }}
-          aws-region: $ {{ env.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -48,8 +48,8 @@ jobs:
 
       - name: Tag Docker image
         run: |
-          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:latest
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:1.9.0
 
       - name: Push Docker image to ECR
         run: |
-          docker push ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.ECR_URL }}/${{ env.IMAGE_NAME }}:1.9.0
