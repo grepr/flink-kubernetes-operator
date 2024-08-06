@@ -1,6 +1,9 @@
 name: "Push Docker Image to Dev ECR"
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - rp-OPS-147-automate-build
 jobs:
   build_image:
     runs-on: ubuntu-latest
