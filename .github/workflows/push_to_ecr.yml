@@ -1,8 +1,6 @@
 name: "Push Docker Image to Dev ECR"
 on:
   workflow_dispatch:
-  push:
-    branches: [ rp-OPS-147-automate-build ]
 env:
   ROLE_ARN: arn:aws:iam::381491835868:role/grepr-flink-kubernetes-operator
   ROLE_SESSION_NAME: GitHub_to_AWS_via_FederatedOIDC
