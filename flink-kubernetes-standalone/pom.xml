@@ -45,10 +45,10 @@ under the License.
             <artifactId>flink-clients</artifactId>
             <version>${flink.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
+<!--                <exclusion>-->
+<!--                    <groupId>org.apache.commons</groupId>-->
+<!--                    <artifactId>commons-compress</artifactId>-->
+<!--                </exclusion>-->
             </exclusions>
         </dependency>
 
