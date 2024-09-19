@@ -57,7 +57,7 @@ under the License.
                     <groupId>org.apache.commons</groupId>
                     <artifactId>commons-compress</artifactId>
                 </exclusion>
-                </exclusions>
+            </exclusions>
         </dependency>
 
         <!-- Fabric 8 -->
