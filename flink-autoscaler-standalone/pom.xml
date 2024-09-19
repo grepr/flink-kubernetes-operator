@@ -23,7 +23,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-kubernetes-operator-parent</artifactId>
-        <version>1.9-SNAPSHOT</version>
+        <version>1.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -98,10 +98,6 @@ under the License.
                     <artifactId>flink-optimizer</artifactId>
                     <groupId>org.apache.flink</groupId>
                 </exclusion>
-<!--                <exclusion>-->
-<!--                    <groupId>org.apache.commons</groupId>-->
-<!--                    <artifactId>commons-compress</artifactId>-->
-<!--                </exclusion>-->
             </exclusions>
         </dependency>
 
@@ -218,6 +214,15 @@ under the License.
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <FLINK_CONF_DIR>src/test/resources</FLINK_CONF_DIR>
+                    </environmentVariables>
+                </configuration>
             </plugin>
         </plugins>
     </build>

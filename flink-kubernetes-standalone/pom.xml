@@ -24,7 +24,7 @@ under the License.
     <parent>
         <artifactId>flink-kubernetes-operator-parent</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.9-SNAPSHOT</version>
+        <version>1.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -44,12 +44,6 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients</artifactId>
             <version>${flink.version}</version>
-            <exclusions>
-<!--                <exclusion>-->
-<!--                    <groupId>org.apache.commons</groupId>-->
-<!--                    <artifactId>commons-compress</artifactId>-->
-<!--                </exclusion>-->
-            </exclusions>
         </dependency>
 
         <!-- Test -->
