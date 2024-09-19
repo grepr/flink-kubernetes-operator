@@ -133,6 +133,11 @@ under the License.
                 <artifactId>commons-compress</artifactId>
                 <version>1.26.0</version>
             </dependency>
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>1.17.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
