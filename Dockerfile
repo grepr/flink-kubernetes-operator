@@ -59,7 +59,7 @@ COPY --chown=flink:flink --from=build /app/tools/license/licenses-output/license
 COPY --chown=flink:flink --from=build /app/LICENSE ./LICENSE
 COPY --chown=flink:flink docker-entrypoint.sh /
 
-ARG SKIP_OS_UPDATE=true
+ARG SKIP_OS_UPDATE=false
 
 # Updating Debian
 RUN if [ "$SKIP_OS_UPDATE" = "false" ]; then apt-get update; fi
