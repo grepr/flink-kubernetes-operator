@@ -77,6 +77,14 @@ public class ApplicationReconciler
     }
 
     @Override
+    protected void maybeWaitForResources(
+            FlinkResourceContext<FlinkDeployment> ctx,
+            Configuration deployConfig,
+            FlinkDeploymentSpec lastReconciledSpec) {
+        // No-op
+    }
+
+    @Override
     protected AvailableUpgradeMode getAvailableUpgradeMode(
             FlinkResourceContext<FlinkDeployment> ctx, Configuration deployConfig)
             throws Exception {

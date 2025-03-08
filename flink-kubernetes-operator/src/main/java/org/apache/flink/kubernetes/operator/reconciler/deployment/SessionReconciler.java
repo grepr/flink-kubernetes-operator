@@ -56,6 +56,15 @@ public class SessionReconciler
     }
 
     @Override
+    protected void maybeWaitForResources(
+            FlinkResourceContext<FlinkDeployment> ctx,
+            Configuration deployConfig,
+            FlinkDeploymentSpec lastReconciledSpec)
+            throws Exception {
+        // no-op
+    }
+
+    @Override
     protected boolean readyToReconcile(FlinkResourceContext<FlinkDeployment> ctx) {
         return true;
     }

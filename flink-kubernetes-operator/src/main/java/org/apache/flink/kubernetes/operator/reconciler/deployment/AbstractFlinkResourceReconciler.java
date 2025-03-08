@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.operator.api.FlinkDeployment;
 import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.AbstractFlinkSpec;
 import org.apache.flink.kubernetes.operator.api.spec.FlinkDeploymentSpec;
+import org.apache.flink.kubernetes.operator.api.spec.FlinkSessionJobSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobState;
 import org.apache.flink.kubernetes.operator.api.spec.UpgradeMode;
@@ -87,6 +88,8 @@ public abstract class AbstractFlinkResourceReconciler<
 
     protected Clock clock = Clock.systemDefaultZone();
 
+    private int count = 0;
+
     public AbstractFlinkResourceReconciler(
             EventRecorder eventRecorder,
             StatusRecorder<CR, STATUS> statusRecorder,
@@ -95,6 +98,10 @@ public abstract class AbstractFlinkResourceReconciler<
         this.statusRecorder = statusRecorder;
         this.autoscaler = autoscaler;
     }
+
+    protected abstract void maybeWaitForResources(
+            FlinkResourceContext<CR> ctx, Configuration deployConfig, SPEC lastReconciledSpec)
+            throws Exception;
 
     @Override
     public void reconcile(FlinkResourceContext<CR> ctx) throws Exception {
@@ -136,6 +143,13 @@ public abstract class AbstractFlinkResourceReconciler<
         SPEC lastReconciledSpec =
                 cr.getStatus().getReconciliationStatus().deserializeLastReconciledSpec();
         SPEC currentDeploySpec = cr.getSpec();
+
+        LOG.info("Reconciling resource with spec: {}", currentDeploySpec);
+        if (currentDeploySpec instanceof FlinkSessionJobSpec && count < 1) {
+            var deployConfig = ctx.getDeployConfig(cr.getSpec());
+            maybeWaitForResources(ctx, deployConfig, lastReconciledSpec);
+            ++count;
+        }
 
         applyAutoscaler(ctx);
 

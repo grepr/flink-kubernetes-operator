@@ -42,6 +42,7 @@ import org.apache.flink.kubernetes.operator.metrics.OperatorMetricUtils;
 import org.apache.flink.kubernetes.operator.observer.deployment.FlinkDeploymentObserverFactory;
 import org.apache.flink.kubernetes.operator.observer.sessionjob.FlinkSessionJobObserver;
 import org.apache.flink.kubernetes.operator.reconciler.deployment.ReconcilerFactory;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.GreprResourceManager;
 import org.apache.flink.kubernetes.operator.reconciler.sessionjob.SessionJobReconciler;
 import org.apache.flink.kubernetes.operator.resources.ClusterResourceManager;
 import org.apache.flink.kubernetes.operator.service.FlinkResourceContextFactory;
@@ -193,7 +194,10 @@ public class FlinkOperator {
                 MetricManager.createFlinkSessionJobMetricManager(baseConfig, metricGroup);
         var statusRecorder = StatusRecorder.create(client, metricManager, listeners);
         var autoscaler = AutoscalerFactory.create(client, eventRecorder, null);
-        var reconciler = new SessionJobReconciler(eventRecorder, statusRecorder, autoscaler);
+        var greprResourceManager = new GreprResourceManager(configManager);
+        var reconciler =
+                new SessionJobReconciler(
+                        eventRecorder, statusRecorder, autoscaler, greprResourceManager);
         var observer = new FlinkSessionJobObserver(eventRecorder);
         var canaryResourceManager = new CanaryResourceManager<FlinkSessionJob>(configManager);
         HealthProbe.INSTANCE.registerCanaryResourceManager(canaryResourceManager);

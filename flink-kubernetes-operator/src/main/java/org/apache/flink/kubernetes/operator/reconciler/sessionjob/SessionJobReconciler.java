@@ -30,6 +30,7 @@ import org.apache.flink.kubernetes.operator.autoscaler.KubernetesJobAutoScalerCo
 import org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions;
 import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
 import org.apache.flink.kubernetes.operator.reconciler.deployment.AbstractJobReconciler;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.GreprResourceManager;
 import org.apache.flink.kubernetes.operator.service.AbstractFlinkService;
 import org.apache.flink.kubernetes.operator.utils.EventRecorder;
 import org.apache.flink.kubernetes.operator.utils.StatusRecorder;
@@ -48,11 +49,15 @@ public class SessionJobReconciler
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionJobReconciler.class);
 
+    private final GreprResourceManager greprResourceManager;
+
     public SessionJobReconciler(
             EventRecorder eventRecorder,
             StatusRecorder<FlinkSessionJob, FlinkSessionJobStatus> statusRecorder,
-            JobAutoScaler<ResourceID, KubernetesJobAutoScalerContext> autoscaler) {
+            JobAutoScaler<ResourceID, KubernetesJobAutoScalerContext> autoscaler,
+            GreprResourceManager greprResourceManager) {
         super(eventRecorder, statusRecorder, autoscaler);
+        this.greprResourceManager = greprResourceManager;
     }
 
     @Override
@@ -60,6 +65,30 @@ public class SessionJobReconciler
         return sessionClusterReady(
                         ctx.getJosdkContext().getSecondaryResource(FlinkDeployment.class))
                 && super.readyToReconcile(ctx);
+    }
+
+    @Override
+    protected void maybeWaitForResources(
+            FlinkResourceContext<FlinkSessionJob> ctx,
+            Configuration deployConfig,
+            FlinkSessionJobSpec lastReconciledSpec)
+            throws Exception {
+        var currentDeploySpec = ctx.getResource().getSpec();
+        var currentConfig = ctx.getDeployConfig(currentDeploySpec);
+        var deploymentName = currentDeploySpec.getDeploymentName();
+        LOG.info(
+                "currentDeploySpec = {}, currentConfig = {}, deploymentName = {}",
+                currentDeploySpec,
+                currentConfig,
+                deploymentName);
+        LOG.info("deployConfig = {}", deployConfig);
+        greprResourceManager.provisionResourcesIfRequired(
+                currentConfig,
+                deployConfig,
+                ctx.getKubernetesClient(),
+                deploymentName,
+                lastReconciledSpec,
+                ctx.getFlinkService());
     }
 
     @Override
