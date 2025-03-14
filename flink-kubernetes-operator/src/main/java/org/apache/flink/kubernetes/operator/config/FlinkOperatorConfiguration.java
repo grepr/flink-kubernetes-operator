@@ -34,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -74,6 +75,9 @@ public class FlinkOperatorConfiguration {
     String labelSelector;
     LeaderElectionConfiguration leaderElectionConfiguration;
     DeletionPropagation deletionPropagation;
+    boolean greprPipelinesScaleupProvisionerEnabled;
+    List<String> greprPipelinesScaleupExcludeDeployments;
+    Duration greprPipelineScaleupProvisionerReconcileInterval;
 
     public static FlinkOperatorConfiguration fromConfiguration(Configuration operatorConfig) {
         Duration reconcileInterval =
@@ -185,6 +189,21 @@ public class FlinkOperatorConfiguration {
         DeletionPropagation deletionPropagation =
                 operatorConfig.get(KubernetesOperatorConfigOptions.RESOURCE_DELETION_PROPAGATION);
 
+        boolean greprPipelinesScaleupProvisionerEnabled =
+                operatorConfig.get(
+                        KubernetesOperatorConfigOptions
+                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_ENABLED);
+
+        List<String> greprPipelinesScaleupExcludeDeployments =
+                operatorConfig.get(
+                        KubernetesOperatorConfigOptions
+                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_EXCLUDE_DEPLOYMENTS);
+
+        Duration greprPipelineScaleupProvisionerReconcileInterval =
+                operatorConfig.get(
+                        KubernetesOperatorConfigOptions
+                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_RECONCILE_INTERVAL);
+
         return new FlinkOperatorConfiguration(
                 reconcileInterval,
                 reconcilerMaxParallelism,
@@ -212,7 +231,10 @@ public class FlinkOperatorConfiguration {
                 exceptionLabelMapper,
                 labelSelector,
                 getLeaderElectionConfig(operatorConfig),
-                deletionPropagation);
+                deletionPropagation,
+                greprPipelinesScaleupProvisionerEnabled,
+                greprPipelinesScaleupExcludeDeployments,
+                greprPipelineScaleupProvisionerReconcileInterval);
     }
 
     private static GenericRetry getRetryConfig(Configuration conf) {

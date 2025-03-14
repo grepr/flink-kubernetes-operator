@@ -33,7 +33,9 @@ public enum DiffType {
     /** Upgradable spec change. */
     UPGRADE,
     /** Full redeploy from new state. */
-    SAVEPOINT_REDEPLOY;
+    SAVEPOINT_REDEPLOY,
+    /** Resources are being provisioned for the flink resource. */
+    GREPR_RESOURCE_PROVISIONING;
 
     /**
      * Aggregate a collection of {@link DiffType}s into the type that minimally subsumes all the

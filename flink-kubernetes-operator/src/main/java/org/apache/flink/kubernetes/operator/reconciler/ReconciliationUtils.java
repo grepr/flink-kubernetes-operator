@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.operator.api.AbstractFlinkResource;
 import org.apache.flink.kubernetes.operator.api.FlinkDeployment;
+import org.apache.flink.kubernetes.operator.api.FlinkSessionJob;
 import org.apache.flink.kubernetes.operator.api.reconciler.ReconciliationMetadata;
 import org.apache.flink.kubernetes.operator.api.spec.AbstractFlinkSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobSpec;
@@ -256,6 +257,19 @@ public class ReconciliationUtils {
 
         if (!reschedule) {
             return updateControl;
+        }
+
+        if (current instanceof FlinkSessionJob) {
+            var sessionJob = (FlinkSessionJob) current;
+            if (sessionJob
+                    .getSpec()
+                    .getFlinkConfiguration()
+                    .containsKey("grepr.sessionjob.provisioning-resources")) {
+                LOG.info("provisioning resources, Rescheduling after {} ms", 0);
+                return updateControl.rescheduleAfter(
+                        operatorConfiguration
+                                .getGreprPipelineScaleupProvisionerReconcileInterval());
+            }
         }
 
         if (upgradeStarted(

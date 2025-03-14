@@ -88,8 +88,6 @@ public abstract class AbstractFlinkResourceReconciler<
 
     protected Clock clock = Clock.systemDefaultZone();
 
-    private int count = 0;
-
     public AbstractFlinkResourceReconciler(
             EventRecorder eventRecorder,
             StatusRecorder<CR, STATUS> statusRecorder,
@@ -98,10 +96,6 @@ public abstract class AbstractFlinkResourceReconciler<
         this.statusRecorder = statusRecorder;
         this.autoscaler = autoscaler;
     }
-
-    protected abstract void maybeWaitForResources(
-            FlinkResourceContext<CR> ctx, Configuration deployConfig, SPEC lastReconciledSpec)
-            throws Exception;
 
     @Override
     public void reconcile(FlinkResourceContext<CR> ctx) throws Exception {
@@ -144,34 +138,50 @@ public abstract class AbstractFlinkResourceReconciler<
                 cr.getStatus().getReconciliationStatus().deserializeLastReconciledSpec();
         SPEC currentDeploySpec = cr.getSpec();
 
-        LOG.info("Reconciling resource with spec: {}", currentDeploySpec);
-        if (currentDeploySpec instanceof FlinkSessionJobSpec && count < 1) {
-            var deployConfig = ctx.getDeployConfig(cr.getSpec());
-            maybeWaitForResources(ctx, deployConfig, lastReconciledSpec);
-            ++count;
+        var reconciliationState = reconciliationStatus.getState();
+
+        // Don't apply the autoscaler if we are in the middle of Grepr resource provisioning
+        boolean isGreprResourceProvisioning =
+                lastReconciledSpec instanceof FlinkSessionJobSpec
+                        && lastReconciledSpec
+                                .getFlinkConfiguration()
+                                .containsKey("grepr.sessionjob.provisioning-resources");
+        if (!isGreprResourceProvisioning) {
+            applyAutoscaler(ctx);
         }
 
-        applyAutoscaler(ctx);
-
-        var reconciliationState = reconciliationStatus.getState();
         var specDiff =
                 new ReflectiveDiffBuilder<>(
                                 ctx.getDeploymentMode(), lastReconciledSpec, currentDeploySpec)
                         .build();
         var diffType = specDiff.getType();
 
+        if (isGreprResourceProvisioning) {
+            diffType = DiffType.SCALE;
+        }
+
         boolean specChanged =
                 DiffType.IGNORE != diffType || reconciliationState == ReconciliationState.UPGRADING;
 
+        // Note: We don't use rollback, but if we ever decide to do, we would need to handle the
+        // case for Grepr provisioning as well.
         if (shouldRollBack(ctx, specChanged, lastReconciledSpec)) {
             prepareCrForRollback(ctx, specChanged, lastReconciledSpec);
             specChanged = true;
             diffType = DiffType.UPGRADE;
         }
 
+        LOG.info(
+                "reconciliationState: {}, lastReconciledSpec: {}, currentDeploySpec:{}, Spec changed: {}, diff type: {}",
+                reconciliationState,
+                lastReconciledSpec,
+                currentDeploySpec,
+                specChanged,
+                diffType);
+
         if (specChanged) {
             var deployConfig = ctx.getDeployConfig(cr.getSpec());
-            if (checkNewSpecAlreadyDeployed(cr, deployConfig)) {
+            if (!isGreprResourceProvisioning && checkNewSpecAlreadyDeployed(cr, deployConfig)) {
                 return;
             }
             triggerSpecChangeEvent(cr, specDiff, ctx.getKubernetesClient());

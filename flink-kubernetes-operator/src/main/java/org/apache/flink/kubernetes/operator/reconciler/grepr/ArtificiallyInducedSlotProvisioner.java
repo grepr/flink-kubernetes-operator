@@ -36,8 +36,11 @@ public class ArtificiallyInducedSlotProvisioner {
     private static final Logger LOG =
             LoggerFactory.getLogger(ArtificiallyInducedSlotProvisioner.class);
 
-    public JobID provisionSlots(
-            int withParallelism, FlinkService flinkService, Configuration deployConfig)
+    public void provisionSlots(
+            int withParallelism,
+            FlinkService flinkService,
+            Configuration deployConfig,
+            String jobName)
             throws Exception {
         LOG.info("Provisioning task managers with parallelism {}", withParallelism);
         var conf = new Configuration();
@@ -66,9 +69,7 @@ public class ArtificiallyInducedSlotProvisioner {
                                                         "io.grepr.query.apps.pipeline.taskmanagerprovisioner.TaskManagerProvisionerApp")
                                                 .args(
                                                         new String[] {
-                                                            deployConfig.get(
-                                                                    KubernetesConfigOptions
-                                                                            .CLUSTER_ID),
+                                                            jobName,
                                                             Integer.toString(withParallelism)
                                                         })
                                                 .build())
@@ -77,6 +78,5 @@ public class ArtificiallyInducedSlotProvisioner {
                         conf,
                         null);
         LOG.info("Submitted job {} to provision task managers", jobId);
-        return jobId;
     }
 }

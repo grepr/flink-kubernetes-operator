@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.autoscaler.JobAutoScaler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.operator.api.AbstractFlinkResource;
+import org.apache.flink.kubernetes.operator.api.FlinkSessionJob;
 import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.AbstractFlinkSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobState;
@@ -36,6 +37,7 @@ import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
 import org.apache.flink.kubernetes.operator.exception.RecoveryFailureException;
 import org.apache.flink.kubernetes.operator.reconciler.ReconciliationUtils;
 import org.apache.flink.kubernetes.operator.reconciler.SnapshotType;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHookStatus;
 import org.apache.flink.kubernetes.operator.service.CheckpointHistoryWrapper;
 import org.apache.flink.kubernetes.operator.utils.EventRecorder;
 import org.apache.flink.kubernetes.operator.utils.SnapshotUtils;
@@ -93,6 +95,13 @@ public abstract class AbstractJobReconciler<
                 && SnapshotUtils.savepointInProgress(jobStatus);
     }
 
+    protected abstract GreprHookStatus maybeExecuteGreprHooks(
+            FlinkResourceContext<CR> ctx,
+            Configuration deployConfig,
+            SPEC lastReconciledSpec,
+            DiffType diffType,
+            JobState desiredJobState);
+
     @Override
     protected boolean reconcileSpecChange(
             DiffType diffType,
@@ -108,6 +117,8 @@ public abstract class AbstractJobReconciler<
         JobState currentJobState = lastReconciledSpec.getJob().getState();
         JobState desiredJobState = currentDeploySpec.getJob().getState();
 
+        LOG.info("Current job state: {}, Desired job state: {}", currentJobState, desiredJobState);
+
         if (diffType == DiffType.SAVEPOINT_REDEPLOY) {
             redeployWithSavepoint(
                     ctx, deployConfig, resource, status, currentDeploySpec, desiredJobState);
@@ -121,6 +132,24 @@ public abstract class AbstractJobReconciler<
             AvailableUpgradeMode availableUpgradeMode = getAvailableUpgradeMode(ctx, deployConfig);
             if (!availableUpgradeMode.isAvailable()) {
                 return false;
+            }
+
+            if (ctx.getOperatorConfig().isGreprPipelinesScaleupProvisionerEnabled()
+                    && resource instanceof FlinkSessionJob) {
+                var greprHooksStatus =
+                        maybeExecuteGreprHooks(
+                                ctx, deployConfig, lastReconciledSpec, diffType, desiredJobState);
+                LOG.info("Grepr hooks status: {}", greprHooksStatus);
+                if (greprHooksStatus == GreprHookStatus.PENDING) {
+                    LOG.info("Waiting for grepr hooks to complete before scaling up...");
+                    resource.getSpec()
+                            .getFlinkConfiguration()
+                            .put("grepr.sessionjob.provisioning-resources", "true");
+                    return true;
+                }
+                resource.getSpec()
+                        .getFlinkConfiguration()
+                        .remove("grepr.sessionjob.provisioning-resources");
             }
 
             eventRecorder.triggerEvent(

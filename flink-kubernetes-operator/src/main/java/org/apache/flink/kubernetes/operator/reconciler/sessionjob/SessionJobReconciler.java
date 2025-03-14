@@ -22,7 +22,9 @@ import org.apache.flink.autoscaler.JobAutoScaler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.operator.api.FlinkDeployment;
 import org.apache.flink.kubernetes.operator.api.FlinkSessionJob;
+import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.FlinkSessionJobSpec;
+import org.apache.flink.kubernetes.operator.api.spec.JobState;
 import org.apache.flink.kubernetes.operator.api.spec.UpgradeMode;
 import org.apache.flink.kubernetes.operator.api.status.FlinkSessionJobStatus;
 import org.apache.flink.kubernetes.operator.api.status.JobManagerDeploymentStatus;
@@ -30,7 +32,9 @@ import org.apache.flink.kubernetes.operator.autoscaler.KubernetesJobAutoScalerCo
 import org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions;
 import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
 import org.apache.flink.kubernetes.operator.reconciler.deployment.AbstractJobReconciler;
-import org.apache.flink.kubernetes.operator.reconciler.grepr.GreprResourceManager;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHookStatus;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHookType;
+import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHooksManager;
 import org.apache.flink.kubernetes.operator.service.AbstractFlinkService;
 import org.apache.flink.kubernetes.operator.utils.EventRecorder;
 import org.apache.flink.kubernetes.operator.utils.StatusRecorder;
@@ -42,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 /** The reconciler for the {@link FlinkSessionJob}. */
 public class SessionJobReconciler
@@ -49,15 +54,11 @@ public class SessionJobReconciler
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionJobReconciler.class);
 
-    private final GreprResourceManager greprResourceManager;
-
     public SessionJobReconciler(
             EventRecorder eventRecorder,
             StatusRecorder<FlinkSessionJob, FlinkSessionJobStatus> statusRecorder,
-            JobAutoScaler<ResourceID, KubernetesJobAutoScalerContext> autoscaler,
-            GreprResourceManager greprResourceManager) {
+            JobAutoScaler<ResourceID, KubernetesJobAutoScalerContext> autoscaler) {
         super(eventRecorder, statusRecorder, autoscaler);
-        this.greprResourceManager = greprResourceManager;
     }
 
     @Override
@@ -68,27 +69,87 @@ public class SessionJobReconciler
     }
 
     @Override
-    protected void maybeWaitForResources(
+    protected GreprHookStatus maybeExecuteGreprHooks(
             FlinkResourceContext<FlinkSessionJob> ctx,
             Configuration deployConfig,
-            FlinkSessionJobSpec lastReconciledSpec)
-            throws Exception {
+            FlinkSessionJobSpec lastReconciledSpec,
+            DiffType diffType,
+            JobState desiredJobState) {
         var currentDeploySpec = ctx.getResource().getSpec();
-        var currentConfig = ctx.getDeployConfig(currentDeploySpec);
+        var currentConfig = ctx.getDeployConfig(lastReconciledSpec);
         var deploymentName = currentDeploySpec.getDeploymentName();
+        var excludedDeployments =
+                ctx.getOperatorConfig().getGreprPipelinesScaleupExcludeDeployments();
+        if (diffType != DiffType.SCALE
+                || desiredJobState != JobState.RUNNING
+                || excludedDeployments.contains(deploymentName)) {
+            return GreprHookStatus.NOT_APPLICABLE;
+        }
+
         LOG.info(
                 "currentDeploySpec = {}, currentConfig = {}, deploymentName = {}",
                 currentDeploySpec,
                 currentConfig,
                 deploymentName);
         LOG.info("deployConfig = {}", deployConfig);
-        greprResourceManager.provisionResourcesIfRequired(
-                currentConfig,
-                deployConfig,
-                ctx.getKubernetesClient(),
-                deploymentName,
-                lastReconciledSpec,
-                ctx.getFlinkService());
+        eventRecorder.triggerEvent(
+                ctx.getResource(),
+                EventRecorder.Type.Normal,
+                EventRecorder.Reason.GreprHookPending,
+                EventRecorder.Component.Job,
+                MSG_SUSPENDED,
+                ctx.getKubernetesClient());
+        var greprHooks =
+                GreprHooksManager.getExecutableHooks(GreprHookType.SESSION_JOB_PRE_SCALE_UP)
+                        .stream()
+                        .map(
+                                hooks -> {
+                                    try {
+                                        return hooks.getStatusOrExecute(
+                                                currentConfig,
+                                                deployConfig,
+                                                deploymentName,
+                                                lastReconciledSpec,
+                                                ctx.getFlinkService(),
+                                                ctx.getOperatorConfig());
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                })
+                        .collect(Collectors.toList());
+        var status = GreprHooksManager.getStatus(greprHooks);
+        switch (status) {
+            case COMPLETED:
+                eventRecorder.triggerEvent(
+                        ctx.getResource(),
+                        EventRecorder.Type.Normal,
+                        EventRecorder.Reason.GreprHookFinished,
+                        EventRecorder.Component.Job,
+                        "Grepr hook finished",
+                        ctx.getKubernetesClient());
+                break;
+            case PENDING:
+                eventRecorder.triggerEvent(
+                        ctx.getResource(),
+                        EventRecorder.Type.Normal,
+                        EventRecorder.Reason.GreprHookPending,
+                        EventRecorder.Component.Job,
+                        "Grepr hook pending",
+                        ctx.getKubernetesClient());
+                break;
+            case FAILED:
+                eventRecorder.triggerEvent(
+                        ctx.getResource(),
+                        EventRecorder.Type.Warning,
+                        EventRecorder.Reason.GreprHookFailed,
+                        EventRecorder.Component.Job,
+                        "Grepr hook failed",
+                        ctx.getKubernetesClient());
+                break;
+            default:
+                break;
+        }
+        return status;
     }
 
     @Override

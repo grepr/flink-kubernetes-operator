@@ -96,7 +96,7 @@ public class SessionJobReconcilerTest extends OperatorTestBase {
                 new TestReconcilerAdapter<>(
                         this,
                         new SessionJobReconciler(
-                                eventRecorder, statusRecorder, new NoopJobAutoscaler<>(), null));
+                                eventRecorder, statusRecorder, new NoopJobAutoscaler<>()));
     }
 
     @Test

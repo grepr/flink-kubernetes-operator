@@ -92,7 +92,7 @@ public class TestingFlinkSessionJobController
                         ValidatorUtils.discoverValidators(configManager),
                         ctxFactory,
                         new SessionJobReconciler(
-                                eventRecorder, statusRecorder, new NoopJobAutoscaler<>(), null),
+                                eventRecorder, statusRecorder, new NoopJobAutoscaler<>()),
                         new FlinkSessionJobObserver(eventRecorder),
                         statusRecorder,
                         eventRecorder,
