@@ -27,7 +27,6 @@ import org.apache.flink.kubernetes.operator.api.FlinkDeployment;
 import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.AbstractFlinkSpec;
 import org.apache.flink.kubernetes.operator.api.spec.FlinkDeploymentSpec;
-import org.apache.flink.kubernetes.operator.api.spec.FlinkSessionJobSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobState;
 import org.apache.flink.kubernetes.operator.api.spec.UpgradeMode;
@@ -39,6 +38,7 @@ import org.apache.flink.kubernetes.operator.api.status.SnapshotTriggerType;
 import org.apache.flink.kubernetes.operator.autoscaler.KubernetesJobAutoScalerContext;
 import org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions;
 import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
+import org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookUtils;
 import org.apache.flink.kubernetes.operator.reconciler.Reconciler;
 import org.apache.flink.kubernetes.operator.reconciler.ReconciliationUtils;
 import org.apache.flink.kubernetes.operator.reconciler.diff.DiffResult;
@@ -140,24 +140,19 @@ public abstract class AbstractFlinkResourceReconciler<
 
         var reconciliationState = reconciliationStatus.getState();
 
-        // Don't apply the autoscaler if we are in the middle of Grepr resource provisioning
-        boolean isGreprResourceProvisioning =
-                lastReconciledSpec instanceof FlinkSessionJobSpec
-                        && lastReconciledSpec
-                                .getFlinkConfiguration()
-                                .containsKey("grepr.sessionjob.provisioning-resources");
-        if (!isGreprResourceProvisioning) {
-            applyAutoscaler(ctx);
-        }
+        applyAutoscaler(ctx);
+
+        boolean isResourceHooksActive = FlinkResourceHookUtils.areHooksActive(lastReconciledSpec);
 
         var specDiff =
                 new ReflectiveDiffBuilder<>(
                                 ctx.getDeploymentMode(), lastReconciledSpec, currentDeploySpec)
                         .build();
-        var diffType = specDiff.getType();
-
-        if (isGreprResourceProvisioning) {
-            diffType = DiffType.SCALE;
+        DiffType diffType;
+        if (isResourceHooksActive) {
+            diffType = DiffType.FLINK_RESOURCE_HOOK_PENDING;
+        } else {
+            diffType = specDiff.getType();
         }
 
         boolean specChanged =
@@ -171,17 +166,9 @@ public abstract class AbstractFlinkResourceReconciler<
             diffType = DiffType.UPGRADE;
         }
 
-        LOG.info(
-                "reconciliationState: {}, lastReconciledSpec: {}, currentDeploySpec:{}, Spec changed: {}, diff type: {}",
-                reconciliationState,
-                lastReconciledSpec,
-                currentDeploySpec,
-                specChanged,
-                diffType);
-
         if (specChanged) {
             var deployConfig = ctx.getDeployConfig(cr.getSpec());
-            if (!isGreprResourceProvisioning && checkNewSpecAlreadyDeployed(cr, deployConfig)) {
+            if (checkNewSpecAlreadyDeployed(cr, deployConfig, diffType)) {
                 return;
             }
             triggerSpecChangeEvent(cr, specDiff, ctx.getKubernetesClient());
@@ -341,8 +328,10 @@ public abstract class AbstractFlinkResourceReconciler<
      * @param deployConf Deploy configuration for the Flink resource.
      * @return True if desired spec was already deployed.
      */
-    private boolean checkNewSpecAlreadyDeployed(CR resource, Configuration deployConf) {
-        if (resource.getStatus().getReconciliationStatus().getState()
+    private boolean checkNewSpecAlreadyDeployed(
+            CR resource, Configuration deployConf, DiffType diffType) {
+        if (diffType == DiffType.FLINK_RESOURCE_HOOK_PENDING
+                || resource.getStatus().getReconciliationStatus().getState()
                         == ReconciliationState.UPGRADING
                 || resource.getStatus().getReconciliationStatus().getState()
                         == ReconciliationState.ROLLING_BACK) {

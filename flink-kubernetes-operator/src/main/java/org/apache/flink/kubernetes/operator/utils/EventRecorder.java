@@ -253,8 +253,8 @@ public class EventRecorder {
         AutoscalerError,
         Scaling,
         UnsupportedFlinkVersion,
-        GreprHookPending,
-        GreprHookFinished,
-        GreprHookFailed
+        FlinkSessionJobHookPending,
+        FlinkSessionJobHookFinished,
+        FlinkSessionJobHookFailed
     }
 }

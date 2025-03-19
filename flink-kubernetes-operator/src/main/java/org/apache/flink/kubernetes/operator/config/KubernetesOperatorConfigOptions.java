@@ -31,7 +31,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Constants;
 
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /** This class holds configuration constants used by flink operator. */
@@ -45,7 +44,6 @@ public class KubernetesOperatorConfigOptions {
     public static final String SECTION_SYSTEM = "system";
     public static final String SECTION_ADVANCED = "system_advanced";
     public static final String SECTION_DYNAMIC = "dynamic";
-    public static final String GREPR_SECTION = "grepr_system";
 
     public static ConfigOptions.OptionBuilder operatorConfig(String key) {
         return ConfigOptions.key(K8S_OP_CONF_PREFIX + key);
@@ -624,29 +622,10 @@ public class KubernetesOperatorConfigOptions {
                     .withDescription(
                             "How often to retrieve Kubernetes cluster resource usage information. This information is used to avoid running out of cluster resources when scaling up resources. Negative values disable the feature.");
 
-    @Documentation.Section(GREPR_SECTION)
-    public static final ConfigOption<Boolean> GREPR_PIPELINES_SCALE_UP_PROVISIONER_ENABLED =
-            operatorConfig("grepr.pipeline-scale-up-provisioner.enabled")
+    @Documentation.Section(SECTION_ADVANCED)
+    public static final ConfigOption<Boolean> FLINK_RESOURCE_HOOKS_ENABLED =
+            operatorConfig("flink-resource.hooks.enabled")
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Enable scale up provisioner for Grepr pipelines.");
-
-    @Documentation.Section(GREPR_SECTION)
-    public static final ConfigOption<List<String>>
-            GREPR_PIPELINES_SCALE_UP_PROVISIONER_EXCLUDE_DEPLOYMENTS =
-                    operatorConfig("grepr.pipeline-scale-up-provisioner.exclude-deployments")
-                            .stringType()
-                            .asList()
-                            .defaultValues()
-                            .withDescription(
-                                    "List of deployments to exclude from scale up provisioner.");
-
-    @Documentation.Section(GREPR_SECTION)
-    public static final ConfigOption<Duration>
-            GREPR_PIPELINES_SCALE_UP_PROVISIONER_RECONCILE_INTERVAL =
-                    operatorConfig("grepr.pipeline-scale-up-provisioner.reconcile-interval")
-                            .durationType()
-                            .defaultValue(Duration.ofSeconds(5))
-                            .withDescription(
-                                    "Reconcile interval for Grepr pipelines scale up provisioner.");
+                    .withDescription("Enables flink resource hooks.");
 }

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.autoscaler.JobAutoScaler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.operator.api.AbstractFlinkResource;
-import org.apache.flink.kubernetes.operator.api.FlinkSessionJob;
 import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.AbstractFlinkSpec;
 import org.apache.flink.kubernetes.operator.api.spec.JobState;
@@ -35,9 +34,10 @@ import org.apache.flink.kubernetes.operator.autoscaler.KubernetesJobAutoScalerCo
 import org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions;
 import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
 import org.apache.flink.kubernetes.operator.exception.RecoveryFailureException;
+import org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookStatus;
+import org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookType;
 import org.apache.flink.kubernetes.operator.reconciler.ReconciliationUtils;
 import org.apache.flink.kubernetes.operator.reconciler.SnapshotType;
-import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHookStatus;
 import org.apache.flink.kubernetes.operator.service.CheckpointHistoryWrapper;
 import org.apache.flink.kubernetes.operator.utils.EventRecorder;
 import org.apache.flink.kubernetes.operator.utils.SnapshotUtils;
@@ -54,6 +54,8 @@ import java.util.function.Predicate;
 
 import static org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions.OPERATOR_JOB_RESTART_FAILED;
 import static org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptions.OPERATOR_JOB_UPGRADE_LAST_STATE_CHECKPOINT_MAX_AGE;
+import static org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookUtils.FLINK_RESOURCES_HOOKS_ACTIVE_KEY;
+import static org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookUtils.FLINK_RESOURCES_HOOKS_RECONCILIATION_INTERVAL_KEY;
 
 /**
  * Reconciler responsible for handling the job lifecycle according to the desired and current
@@ -95,12 +97,10 @@ public abstract class AbstractJobReconciler<
                 && SnapshotUtils.savepointInProgress(jobStatus);
     }
 
-    protected abstract GreprHookStatus maybeExecuteGreprHooks(
+    protected abstract FlinkResourceHookStatus maybeExecuteFlinkResourceHooks(
             FlinkResourceContext<CR> ctx,
             Configuration deployConfig,
-            SPEC lastReconciledSpec,
-            DiffType diffType,
-            JobState desiredJobState);
+            Configuration lastDeployedConfig);
 
     @Override
     protected boolean reconcileSpecChange(
@@ -134,22 +134,9 @@ public abstract class AbstractJobReconciler<
                 return false;
             }
 
-            if (ctx.getOperatorConfig().isGreprPipelinesScaleupProvisionerEnabled()
-                    && resource instanceof FlinkSessionJob) {
-                var greprHooksStatus =
-                        maybeExecuteGreprHooks(
-                                ctx, deployConfig, lastReconciledSpec, diffType, desiredJobState);
-                LOG.info("Grepr hooks status: {}", greprHooksStatus);
-                if (greprHooksStatus == GreprHookStatus.PENDING) {
-                    LOG.info("Waiting for grepr hooks to complete before scaling up...");
-                    resource.getSpec()
-                            .getFlinkConfiguration()
-                            .put("grepr.sessionjob.provisioning-resources", "true");
-                    return true;
-                }
-                resource.getSpec()
-                        .getFlinkConfiguration()
-                        .remove("grepr.sessionjob.provisioning-resources");
+            // We handle the flink resource hook
+            if (handleFlinkResourceHooks(ctx, deployConfig, lastReconciledSpec)) {
+                return true;
             }
 
             eventRecorder.triggerEvent(
@@ -195,6 +182,52 @@ public abstract class AbstractJobReconciler<
             ReconciliationUtils.updateStatusForDeployedSpec(resource, deployConfig, clock);
         }
         return true;
+    }
+
+    /**
+     * Executes the flink resource hooks, if enabled. Specifically, we try executing the {@link
+     * FlinkResourceHookType#SESSION_JOB_PRE_SCALE_UP} hook. 1. If the hooks are not enabled or
+     */
+    private boolean handleFlinkResourceHooks(
+            FlinkResourceContext<CR> ctx, Configuration deployConfig, SPEC lastReconciledSpec) {
+
+        if (!ctx.getOperatorConfig().isFlinkResourceHooksEnabled()) {
+            return false;
+        }
+
+        var resource = ctx.getResource();
+        var currentDeployedConfig = ctx.getDeployConfig(lastReconciledSpec);
+        var hooksStatus = maybeExecuteFlinkResourceHooks(ctx, deployConfig, currentDeployedConfig);
+        if (hooksStatus == null
+                || hooksStatus.getStatus() == FlinkResourceHookStatus.Status.NOT_APPLICABLE) {
+            return false;
+        }
+
+        LOG.info("Flink hooks status: {}", hooksStatus);
+        // We store the state of the hooks in the reconciliation config to avoid changing the flink
+        // CRDs for now.
+        var reconciliationSpec =
+                resource.getStatus().getReconciliationStatus().deserializeLastReconciledSpec();
+        var reconciliationConfig = reconciliationSpec.getFlinkConfiguration();
+
+        if (hooksStatus.getStatus() == FlinkResourceHookStatus.Status.PENDING) {
+            reconciliationConfig.put(FLINK_RESOURCES_HOOKS_ACTIVE_KEY, "true");
+            reconciliationConfig.put(
+                    FLINK_RESOURCES_HOOKS_RECONCILIATION_INTERVAL_KEY,
+                    hooksStatus.getReconcileInterval().toString());
+            resource.getStatus()
+                    .getReconciliationStatus()
+                    .serializeAndSetLastReconciledSpec(reconciliationSpec, resource);
+            return true;
+        }
+
+        reconciliationConfig.remove(FLINK_RESOURCES_HOOKS_ACTIVE_KEY);
+        reconciliationConfig.remove(FLINK_RESOURCES_HOOKS_RECONCILIATION_INTERVAL_KEY);
+        resource.getStatus()
+                .getReconciliationStatus()
+                .serializeAndSetLastReconciledSpec(reconciliationSpec, resource);
+
+        return false;
     }
 
     protected AvailableUpgradeMode getAvailableUpgradeMode(

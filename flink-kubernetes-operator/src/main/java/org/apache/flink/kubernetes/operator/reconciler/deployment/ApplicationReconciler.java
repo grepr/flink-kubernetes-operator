@@ -25,9 +25,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.operator.api.FlinkDeployment;
-import org.apache.flink.kubernetes.operator.api.diff.DiffType;
 import org.apache.flink.kubernetes.operator.api.spec.FlinkDeploymentSpec;
-import org.apache.flink.kubernetes.operator.api.spec.JobState;
 import org.apache.flink.kubernetes.operator.api.spec.UpgradeMode;
 import org.apache.flink.kubernetes.operator.api.status.FlinkDeploymentStatus;
 import org.apache.flink.kubernetes.operator.api.status.JobManagerDeploymentStatus;
@@ -38,9 +36,9 @@ import org.apache.flink.kubernetes.operator.config.KubernetesOperatorConfigOptio
 import org.apache.flink.kubernetes.operator.controller.FlinkResourceContext;
 import org.apache.flink.kubernetes.operator.exception.RecoveryFailureException;
 import org.apache.flink.kubernetes.operator.health.ClusterHealthInfo;
+import org.apache.flink.kubernetes.operator.hooks.FlinkResourceHookStatus;
 import org.apache.flink.kubernetes.operator.observer.ClusterHealthEvaluator;
 import org.apache.flink.kubernetes.operator.reconciler.ReconciliationUtils;
-import org.apache.flink.kubernetes.operator.reconciler.grepr.hooks.GreprHookStatus;
 import org.apache.flink.kubernetes.operator.service.FlinkService;
 import org.apache.flink.kubernetes.operator.utils.EventRecorder;
 import org.apache.flink.kubernetes.operator.utils.FlinkUtils;
@@ -80,13 +78,11 @@ public class ApplicationReconciler
     }
 
     @Override
-    protected GreprHookStatus maybeExecuteGreprHooks(
+    protected FlinkResourceHookStatus maybeExecuteFlinkResourceHooks(
             FlinkResourceContext<FlinkDeployment> ctx,
             Configuration deployConfig,
-            FlinkDeploymentSpec lastReconciledSpec,
-            DiffType diffType,
-            JobState desiredJobState) {
-        return GreprHookStatus.NOT_APPLICABLE;
+            Configuration lastDeployedConfig) {
+        return FlinkResourceHookStatus.NOT_APPLICABLE;
     }
 
     @Override

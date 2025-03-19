@@ -87,7 +87,6 @@ public class FlinkSessionJobController
     @Override
     public UpdateControl<FlinkSessionJob> reconcile(
             FlinkSessionJob flinkSessionJob, Context josdkContext) {
-        LOG.info("Reconciling 1 {}", flinkSessionJob);
         if (canaryResourceManager.handleCanaryResourceReconciliation(
                 flinkSessionJob, josdkContext.getClient())) {
             return UpdateControl.noUpdate();
@@ -99,15 +98,12 @@ public class FlinkSessionJobController
         FlinkSessionJob previousJob = ReconciliationUtils.clone(flinkSessionJob);
         var ctx = ctxFactory.getResourceContext(flinkSessionJob, josdkContext);
 
-        LOG.info("Reconciling 2 {}", flinkSessionJob);
-
         // If we get an unsupported Flink version, trigger event and exit
         if (!ValidatorUtils.validateSupportedVersion(ctx, eventRecorder)) {
             return UpdateControl.noUpdate();
         }
 
         observer.observe(ctx);
-        LOG.info("Reconciling 3 {}", flinkSessionJob);
         if (!validateSessionJob(ctx)) {
             statusRecorder.patchAndCacheStatus(flinkSessionJob, ctx.getKubernetesClient());
             return ReconciliationUtils.toUpdateControl(
@@ -116,10 +112,6 @@ public class FlinkSessionJobController
 
         try {
             statusRecorder.patchAndCacheStatus(flinkSessionJob, ctx.getKubernetesClient());
-            LOG.info("Reconciling {}", flinkSessionJob);
-            LOG.info(
-                    "Reconciling job with reconcilliation status {}",
-                    flinkSessionJob.getStatus().getReconciliationStatus());
             reconciler.reconcile(ctx);
         } catch (Exception e) {
             eventRecorder.triggerEvent(
@@ -131,7 +123,6 @@ public class FlinkSessionJobController
                     josdkContext.getClient());
             throw new ReconciliationException(e);
         }
-        LOG.info("Reconciling 4 {}", flinkSessionJob);
         statusRecorder.patchAndCacheStatus(flinkSessionJob, ctx.getKubernetesClient());
         return ReconciliationUtils.toUpdateControl(
                 ctx.getOperatorConfig(), flinkSessionJob, previousJob, true);

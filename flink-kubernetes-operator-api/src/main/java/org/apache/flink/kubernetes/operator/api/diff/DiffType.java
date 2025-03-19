@@ -34,8 +34,8 @@ public enum DiffType {
     UPGRADE,
     /** Full redeploy from new state. */
     SAVEPOINT_REDEPLOY,
-    /** Resources are being provisioned for the flink resource. */
-    GREPR_RESOURCE_PROVISIONING;
+    /** Flink resource hooks are active. */
+    FLINK_RESOURCE_HOOK_PENDING;
 
     /**
      * Aggregate a collection of {@link DiffType}s into the type that minimally subsumes all the

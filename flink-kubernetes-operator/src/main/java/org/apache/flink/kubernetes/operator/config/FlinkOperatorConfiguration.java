@@ -34,7 +34,6 @@ import org.apache.commons.lang3.StringUtils;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -75,9 +74,7 @@ public class FlinkOperatorConfiguration {
     String labelSelector;
     LeaderElectionConfiguration leaderElectionConfiguration;
     DeletionPropagation deletionPropagation;
-    boolean greprPipelinesScaleupProvisionerEnabled;
-    List<String> greprPipelinesScaleupExcludeDeployments;
-    Duration greprPipelineScaleupProvisionerReconcileInterval;
+    boolean flinkResourceHooksEnabled;
 
     public static FlinkOperatorConfiguration fromConfiguration(Configuration operatorConfig) {
         Duration reconcileInterval =
@@ -189,20 +186,8 @@ public class FlinkOperatorConfiguration {
         DeletionPropagation deletionPropagation =
                 operatorConfig.get(KubernetesOperatorConfigOptions.RESOURCE_DELETION_PROPAGATION);
 
-        boolean greprPipelinesScaleupProvisionerEnabled =
-                operatorConfig.get(
-                        KubernetesOperatorConfigOptions
-                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_ENABLED);
-
-        List<String> greprPipelinesScaleupExcludeDeployments =
-                operatorConfig.get(
-                        KubernetesOperatorConfigOptions
-                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_EXCLUDE_DEPLOYMENTS);
-
-        Duration greprPipelineScaleupProvisionerReconcileInterval =
-                operatorConfig.get(
-                        KubernetesOperatorConfigOptions
-                                .GREPR_PIPELINES_SCALE_UP_PROVISIONER_RECONCILE_INTERVAL);
+        boolean flinkResourceHooksEnabled =
+                operatorConfig.get(KubernetesOperatorConfigOptions.FLINK_RESOURCE_HOOKS_ENABLED);
 
         return new FlinkOperatorConfiguration(
                 reconcileInterval,
@@ -232,9 +217,7 @@ public class FlinkOperatorConfiguration {
                 labelSelector,
                 getLeaderElectionConfig(operatorConfig),
                 deletionPropagation,
-                greprPipelinesScaleupProvisionerEnabled,
-                greprPipelinesScaleupExcludeDeployments,
-                greprPipelineScaleupProvisionerReconcileInterval);
+                flinkResourceHooksEnabled);
     }
 
     private static GenericRetry getRetryConfig(Configuration conf) {
