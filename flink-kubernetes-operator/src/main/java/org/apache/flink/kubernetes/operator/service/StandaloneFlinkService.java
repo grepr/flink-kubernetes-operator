@@ -147,7 +147,7 @@ public class StandaloneFlinkService extends AbstractFlinkService {
             String clusterId,
             Configuration conf,
             DeletionPropagation deletionPropagation) {
-        LOG.info("Deleting cluster {} in namespace {} standalone", clusterId, namespace);
+
         var jmDeployment =
                 kubernetesClient
                         .apps()

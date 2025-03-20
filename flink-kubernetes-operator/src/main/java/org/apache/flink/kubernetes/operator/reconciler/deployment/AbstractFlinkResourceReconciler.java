@@ -158,8 +158,6 @@ public abstract class AbstractFlinkResourceReconciler<
         boolean specChanged =
                 DiffType.IGNORE != diffType || reconciliationState == ReconciliationState.UPGRADING;
 
-        // Note: We don't use rollback, but if we ever decide to do, we would need to handle the
-        // case for Grepr provisioning as well.
         if (shouldRollBack(ctx, specChanged, lastReconciledSpec)) {
             prepareCrForRollback(ctx, specChanged, lastReconciledSpec);
             specChanged = true;
