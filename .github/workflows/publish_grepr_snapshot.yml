@@ -30,9 +30,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-        # Deploy only the flink-kubernetes-operator module
           VERSION=$(git rev-parse --short HEAD)
-          mvn -B versions:set -DnewVersion=${VERSION}-SNAPSHOT -DgenerateBackupPoms=false
+          mvn -B versions:set -DnewVersion=grepr-${VERSION} -DgenerateBackupPoms=false
           
           tmp_settings="tmp-settings.xml"
           echo "<settings><servers><server>" > $tmp_settings
