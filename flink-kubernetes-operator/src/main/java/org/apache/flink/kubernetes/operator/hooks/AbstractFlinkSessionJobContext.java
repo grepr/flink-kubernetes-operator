@@ -9,6 +9,7 @@ import org.apache.flink.kubernetes.operator.hooks.flink.FlinkCluster;
 import org.apache.flink.kubernetes.operator.service.FlinkService;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
@@ -59,6 +60,18 @@ public abstract class AbstractFlinkSessionJobContext
             public void cancelJob(JobID jobId) {
                 try (var client = getFlinkService().getClusterClient(getDeployConfig())) {
                     client.cancel(jobId);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public JobDetailsInfo getJobDetails(JobID jobId) {
+                try (var client = getFlinkService().getClusterClient(getDeployConfig())) {
+                    return client.getJobDetails(jobId)
+                            .get(
+                                    getOperatorConfig().getFlinkClientTimeout().toMillis(),
+                                    TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
