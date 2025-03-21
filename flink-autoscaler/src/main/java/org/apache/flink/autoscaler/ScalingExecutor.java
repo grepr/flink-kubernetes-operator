@@ -256,8 +256,8 @@ public class ScalingExecutor<KEY, Context extends JobAutoScalerContext<KEY>> {
                                                                                 ScalingMetric
                                                                                         .MAX_PARALLELISM)
                                                                         .getCurrent()
-                                                                >= 4
-                                                ? 4
+                                                                >= 8
+                                                ? 8
                                                 : jobVertexScaler.computeScaleTargetParallelism(
                                                         context,
                                                         v,

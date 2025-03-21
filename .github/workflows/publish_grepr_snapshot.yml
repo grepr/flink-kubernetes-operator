@@ -1,5 +1,4 @@
-name: Publish Grepr Snapshot to Github Packages
-
+name: "Publish Grepr Snapshot to Github Packages"
 on:
   workflow_dispatch:
   push:
