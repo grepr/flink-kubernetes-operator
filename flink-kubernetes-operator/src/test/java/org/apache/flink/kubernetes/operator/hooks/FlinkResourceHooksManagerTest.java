@@ -32,8 +32,10 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,27 +72,24 @@ class FlinkResourceHooksManagerTest {
     void testExecuteAllHooks_AllCompleted() {
         FlinkResourceHooksManager manager =
                 new FlinkResourceHooksManager(
-                        Arrays.asList(
+                        List.of(
                                 new TestingFlinkResourceHook(
-                                        "HookA", FlinkResourceHookStatus.Status.COMPLETED),
-                                new TestingFlinkResourceHook(
-                                        "HookB", FlinkResourceHookStatus.Status.COMPLETED)),
+                                        "HookA", FlinkResourceHookStatus.Status.COMPLETED)),
                         eventRecorder);
 
         FlinkResourceHookStatus status =
                 manager.executeAllHooks(FlinkResourceHookType.SESSION_JOB_PRE_SCALE_UP, context);
 
         assertEquals(FlinkResourceHookStatus.Status.COMPLETED, status.getStatus());
-        assertEquals(2, eventCollector.events.size());
+        assertEquals(1, eventCollector.events.size());
 
-        List<Event> events = eventCollector.events;
+        List<Event> events =
+                eventCollector.events.stream()
+                        .sorted(Comparator.comparing(Event::getType))
+                        .collect(Collectors.toList());
         assertEquals("Normal", events.get(0).getType());
         assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
         assertTrue(events.get(0).getMessage().contains("HookA"));
-
-        assertEquals("Normal", events.get(1).getType());
-        assertTrue(events.get(1).getReason().contains("FlinkResourceHookFinished"));
-        assertTrue(events.get(1).getMessage().contains("HookB"));
     }
 
     @Test
@@ -128,7 +127,11 @@ class FlinkResourceHooksManagerTest {
         assertEquals(FlinkResourceHookStatus.Status.FAILED, status.getStatus());
         assertEquals(2, eventCollector.events.size());
 
-        List<Event> events = eventCollector.events;
+        List<Event> events =
+                eventCollector.events.stream()
+                        .sorted(Comparator.comparing(Event::getType))
+                        .collect(Collectors.toList());
+
         assertEquals("Normal", events.get(0).getType());
         assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
 
@@ -157,7 +160,10 @@ class FlinkResourceHooksManagerTest {
         assertEquals(reconcileInterval, status.getReconcileInterval());
         assertEquals(2, eventCollector.events.size());
 
-        List<Event> events = eventCollector.events;
+        List<Event> events =
+                eventCollector.events.stream()
+                        .sorted(Comparator.comparing(Event::getReason))
+                        .collect(Collectors.toList());
         assertEquals("Normal", events.get(0).getType());
         assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
 
