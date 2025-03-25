@@ -102,25 +102,12 @@ public class ScalingExecutor<KEY, Context extends JobAutoScalerContext<KEY>> {
             Instant now,
             JobTopology jobTopology)
             throws Exception {
-        return scaleResource(
-                context, evaluatedMetrics, scalingHistory, scalingTracking, now, jobTopology, 0);
-    }
-
-    public boolean scaleResource(
-            Context context,
-            EvaluatedMetrics evaluatedMetrics,
-            Map<JobVertexID, SortedMap<Instant, ScalingSummary>> scalingHistory,
-            ScalingTracking scalingTracking,
-            Instant now,
-            JobTopology jobTopology,
-            int count)
-            throws Exception {
         var conf = context.getConfiguration();
         var restartTime = scalingTracking.getMaxRestartTimeOrDefault(conf);
 
         var scalingSummaries =
                 computeScalingSummary(
-                        context, evaluatedMetrics, scalingHistory, restartTime, jobTopology, count);
+                        context, evaluatedMetrics, scalingHistory, restartTime, jobTopology);
 
         if (scalingSummaries.isEmpty()) {
             LOG.info("All job vertices are currently running at their target parallelism.");
@@ -225,16 +212,13 @@ public class ScalingExecutor<KEY, Context extends JobAutoScalerContext<KEY>> {
             EvaluatedMetrics evaluatedMetrics,
             Map<JobVertexID, SortedMap<Instant, ScalingSummary>> scalingHistory,
             Duration restartTime,
-            JobTopology jobTopology,
-            int count) {
+            JobTopology jobTopology) {
         LOG.debug("Restart time used in scaling summary computation: {}", restartTime);
 
         if (isJobUnderMemoryPressure(context, evaluatedMetrics.getGlobalMetrics())) {
             LOG.info("Skipping vertex scaling due to memory pressure");
             return Map.of();
         }
-
-        LOG.info("Evaluated metrics size: {}", evaluatedMetrics.getVertexMetrics().size());
 
         var out = new HashMap<JobVertexID, ScalingSummary>();
         var excludeVertexIdList =
@@ -250,23 +234,16 @@ public class ScalingExecutor<KEY, Context extends JobAutoScalerContext<KEY>> {
                             } else {
                                 var currentParallelism =
                                         (int) metrics.get(ScalingMetric.PARALLELISM).getCurrent();
+
                                 var newParallelism =
-                                        count >= 1
-                                                        && metrics.get(
-                                                                                ScalingMetric
-                                                                                        .MAX_PARALLELISM)
-                                                                        .getCurrent()
-                                                                >= 8
-                                                ? 8
-                                                : jobVertexScaler.computeScaleTargetParallelism(
-                                                        context,
-                                                        v,
-                                                        jobTopology.get(v).getInputs().values(),
-                                                        metrics,
-                                                        scalingHistory.getOrDefault(
-                                                                v, Collections.emptySortedMap()),
-                                                        restartTime);
-                                LOG.info("Vertex {} new parallelism: {}", v, newParallelism);
+                                        jobVertexScaler.computeScaleTargetParallelism(
+                                                context,
+                                                v,
+                                                jobTopology.get(v).getInputs().values(),
+                                                metrics,
+                                                scalingHistory.getOrDefault(
+                                                        v, Collections.emptySortedMap()),
+                                                restartTime);
                                 if (currentParallelism != newParallelism) {
                                     out.put(
                                             v,

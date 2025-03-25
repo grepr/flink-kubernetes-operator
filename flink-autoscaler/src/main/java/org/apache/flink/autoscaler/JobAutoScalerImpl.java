@@ -67,8 +67,6 @@ public class JobAutoScalerImpl<KEY, Context extends JobAutoScalerContext<KEY>>
     @VisibleForTesting
     final Map<KEY, AutoscalerFlinkMetrics> flinkMetrics = new ConcurrentHashMap<>();
 
-    private int count = 0;
-
     public JobAutoScalerImpl(
             ScalingMetricCollector<KEY, Context> metricsCollector,
             ScalingMetricEvaluator evaluator,
@@ -176,7 +174,6 @@ public class JobAutoScalerImpl<KEY, Context extends JobAutoScalerContext<KEY>>
 
     private void runScalingLogic(Context ctx, AutoscalerFlinkMetrics autoscalerMetrics)
             throws Exception {
-        ++count;
 
         var collectedMetrics = metricsCollector.updateMetrics(ctx, stateStore);
         var jobTopology = collectedMetrics.getJobTopology();
@@ -211,7 +208,7 @@ public class JobAutoScalerImpl<KEY, Context extends JobAutoScalerContext<KEY>>
                 jobTopology.getVerticesInTopologicalOrder(),
                 () -> lastEvaluatedMetrics.get(ctx.getJobKey()));
 
-        if (!collectedMetrics.isFullyCollected() && count < 3) {
+        if (!collectedMetrics.isFullyCollected()) {
             // We have done an upfront evaluation, but we are not ready for scaling.
             resetRecommendedParallelism(evaluatedMetrics.getVertexMetrics());
             return;
@@ -219,13 +216,7 @@ public class JobAutoScalerImpl<KEY, Context extends JobAutoScalerContext<KEY>>
 
         var parallelismChanged =
                 scalingExecutor.scaleResource(
-                        ctx,
-                        evaluatedMetrics,
-                        scalingHistory,
-                        scalingTracking,
-                        now,
-                        jobTopology,
-                        count);
+                        ctx, evaluatedMetrics, scalingHistory, scalingTracking, now, jobTopology);
 
         if (parallelismChanged) {
             autoscalerMetrics.incrementScaling();

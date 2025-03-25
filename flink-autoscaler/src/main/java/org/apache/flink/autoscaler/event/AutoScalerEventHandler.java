@@ -89,12 +89,12 @@ public interface AutoScalerEventHandler<KEY, Context extends JobAutoScalerContex
             String message,
             Duration interval) {
         // Provide default implementation without proper deduplication
-        //        var scalingReport = scalingReport(scalingSummaries, message);
+        var scalingReport = scalingReport(scalingSummaries, message);
         handleEvent(
                 context,
                 Type.Normal,
                 SCALING_REPORT_REASON,
-                "scalingReport",
+                scalingReport,
                 SCALING_REPORT_KEY,
                 interval);
     }
