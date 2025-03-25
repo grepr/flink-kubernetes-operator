@@ -32,6 +32,9 @@ public class FlinkResourceHooksManager {
     }
 
     public Set<FlinkResourceHook> getHooks(FlinkResourceHookType hookType) {
+        if (hookType == null) {
+            return Set.of();
+        }
         return hooks.get(hookType.name());
     }
 
@@ -59,7 +62,7 @@ public class FlinkResourceHooksManager {
             FlinkResourceHookType hookType, FlinkResourceHookContext context) {
         var hooks = getHooks(hookType);
         if (hooks == null || hooks.isEmpty()) {
-            return COMPLETED_STATUS;
+            return NOT_APPLICABLE;
         }
 
         Duration maxReconcileInterval = Duration.ZERO;
@@ -70,7 +73,7 @@ public class FlinkResourceHooksManager {
         for (FlinkResourceHook hook : hooks) {
             var status = hook.execute(context);
             emitHookStatusEvent(hook, status, context);
-            if (status != NOT_APPLICABLE) {
+            if (status.getStatus() != Status.NOT_APPLICABLE) {
                 anyApplicable = true;
 
                 if (status.getStatus() == Status.PENDING) {
@@ -101,27 +104,29 @@ public class FlinkResourceHooksManager {
                 eventRecorder.triggerEvent(
                         ctx.getFlinkSessionJob(),
                         EventRecorder.Type.Normal,
-                        EventRecorder.Reason.FlinkSessionJobHookFinished,
+                        EventRecorder.Reason.FlinkResourceHookFinished,
                         EventRecorder.Component.Job,
-                        String.format("Grepr hook with name %s finished", hook.getName()),
+                        String.format("Flink resource hook with name %s finished", hook.getName()),
                         ctx.getKubernetesClient());
                 break;
             case PENDING:
                 eventRecorder.triggerEvent(
                         ctx.getFlinkSessionJob(),
                         EventRecorder.Type.Normal,
-                        EventRecorder.Reason.FlinkSessionJobHookPending,
+                        EventRecorder.Reason.FlinkResourceHookPending,
                         EventRecorder.Component.Job,
-                        String.format("Grepr hook with name %s is still running", hook.getName()),
+                        String.format(
+                                "Flink resource hook with name %s is still running",
+                                hook.getName()),
                         ctx.getKubernetesClient());
                 break;
             case FAILED:
                 eventRecorder.triggerEvent(
                         ctx.getFlinkSessionJob(),
                         EventRecorder.Type.Warning,
-                        EventRecorder.Reason.FlinkSessionJobHookFailed,
+                        EventRecorder.Reason.FlinkResourceHookFailed,
                         EventRecorder.Component.Job,
-                        String.format("Grepr hook with name %s failed", hook.getName()),
+                        String.format("Flink resource hook with name %s failed", hook.getName()),
                         ctx.getKubernetesClient());
                 break;
             default:

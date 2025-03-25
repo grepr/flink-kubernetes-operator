@@ -253,8 +253,8 @@ public class EventRecorder {
         AutoscalerError,
         Scaling,
         UnsupportedFlinkVersion,
-        FlinkSessionJobHookPending,
-        FlinkSessionJobHookFinished,
-        FlinkSessionJobHookFailed
+        FlinkResourceHookPending,
+        FlinkResourceHookFinished,
+        FlinkResourceHookFailed
     }
 }
