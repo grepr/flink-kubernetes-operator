@@ -85,11 +85,11 @@ class FlinkResourceHooksManagerTest {
 
         List<Event> events = eventCollector.events;
         assertEquals("Normal", events.get(0).getType());
-        assertTrue(events.get(0).getReason().contains("FlinkSessionJobHookFinished"));
+        assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
         assertTrue(events.get(0).getMessage().contains("HookA"));
 
         assertEquals("Normal", events.get(1).getType());
-        assertTrue(events.get(1).getReason().contains("FlinkSessionJobHookFinished"));
+        assertTrue(events.get(1).getReason().contains("FlinkResourceHookFinished"));
         assertTrue(events.get(1).getMessage().contains("HookB"));
     }
 
@@ -130,10 +130,10 @@ class FlinkResourceHooksManagerTest {
 
         List<Event> events = eventCollector.events;
         assertEquals("Normal", events.get(0).getType());
-        assertTrue(events.get(0).getReason().contains("FlinkSessionJobHookFinished"));
+        assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
 
         assertEquals("Warning", events.get(1).getType());
-        assertTrue(events.get(1).getReason().contains("FlinkSessionJobHookFailed"));
+        assertTrue(events.get(1).getReason().contains("FlinkResourceHookFailed"));
     }
 
     @Test
@@ -159,10 +159,10 @@ class FlinkResourceHooksManagerTest {
 
         List<Event> events = eventCollector.events;
         assertEquals("Normal", events.get(0).getType());
-        assertTrue(events.get(0).getReason().contains("FlinkSessionJobHookFinished"));
+        assertTrue(events.get(0).getReason().contains("FlinkResourceHookFinished"));
 
         assertEquals("Normal", events.get(1).getType());
-        assertTrue(events.get(1).getReason().contains("FlinkSessionJobHookPending"));
+        assertTrue(events.get(1).getReason().contains("FlinkResourceHookPending"));
     }
 
     @Test
@@ -247,7 +247,7 @@ class FlinkResourceHooksManagerTest {
 
         Event event = eventCollector.events.getFirst();
         assertEquals("Normal", event.getType());
-        assertTrue(event.getReason().contains("FlinkSessionJobHookFinished"));
+        assertTrue(event.getReason().contains("FlinkResourceHookFinished"));
     }
 
     // Custom test hook that returns a predefined status
