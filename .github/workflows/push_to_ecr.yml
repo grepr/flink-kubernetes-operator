@@ -44,5 +44,5 @@ jobs:
       - name: Publish Docker image to ECR
         run: |
           TAG="1.9.0-${GITHUB_SHA::7}"
-          docker buildx build --tag ${{ env.DEV_ECR }}:$TAG --tag ${{ env.PRD_ECR }}:$TAG \
+          docker buildx build --tag ${{ env.PRD_ECR }}:$TAG \
             --platform=linux/amd64,linux/arm64 --push --file Dockerfile .
