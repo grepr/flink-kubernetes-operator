@@ -5,10 +5,6 @@ on:
     branches:
       - main
       - 'release-*'
-env:
-  ROLE_ARN: arn:aws:iam::381491835868:role/grepr-flink-kubernetes-operator
-  DEV_ECR: 381491835868.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator
-  PRD_ECR: 992382778380.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator
 jobs:
   build_image:
     runs-on: ubuntu-latest
@@ -29,19 +25,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Configure AWS credentials
+      - name: Configure dev AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.ROLE_ARN }}
+          role-to-assume: arn:aws:iam::381491835868:role/GithubActionsRole
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon dev ECR
         uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registries: "381491835868,992382778380"
 
-      - name: Publish Docker image to ECR
+      - name: Configure prod AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::992382778380:role/GithubActionsRole
+          aws-region: us-east-1
+
+      - name: Login to Amazon prod ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Publish Docker image to prod ECR
         run: |
           TAG="1.9.0-${GITHUB_SHA::7}"
-          docker buildx build --tag ${{ env.DEV_ECR }}:$TAG --tag ${{ env.PRD_ECR }}:$TAG \
+          docker buildx build \
+            --tag 381491835868.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator:$TAG \
+            --tag 992382778380.dkr.ecr.us-east-1.amazonaws.com/flink-k8s-operator:$TAG \
             --platform=linux/amd64,linux/arm64 --push --file Dockerfile .
