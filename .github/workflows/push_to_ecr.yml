@@ -45,7 +45,7 @@ jobs:
       - name: Login to Amazon prod ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Publish Docker image to prod ECR
+      - name: Publish Docker image to dev & prod ECR
         run: |
           TAG="1.9.0-${GITHUB_SHA::7}"
           docker buildx build \
